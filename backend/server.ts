@@ -5,41 +5,14 @@ import dotenv from "dotenv";
 import productRouter from "./routes/productRouter.js";
 import arcjet, { shield, detectBot, tokenBucket } from "@arcjet/node";
 import { isSpoofedBot } from "@arcjet/inspect";
+import { aj } from "./lib/arcjet.js";
 
 dotenv.config(); // Load environment variables from .env file
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
-const aj = arcjet({
-  // Get your site key from https://app.arcjet.com and set it as an environment
-  // variable rather than hard coding.
-  key: process.env.ARCJET_KEY || "your-arcjet-site-key",
-  characteristics: ["ip.src"], // Track requests by IP
-  rules: [
-    // Shield protects your app from common attacks e.g. SQL injection
-    shield({ mode: "LIVE" }),
-    // Create a bot detection rule
-    detectBot({
-      mode: "LIVE", // Blocks requests. Use "DRY_RUN" to log only
-      // Block all bots except the following
-      allow: [
-        "CATEGORY:SEARCH_ENGINE", // Google, Bing, etc
-        // Uncomment to allow these other common bot categories
-        // See the full list at https://arcjet.com/bot-list
-        //"CATEGORY:MONITOR", // Uptime monitoring services
-        //"CATEGORY:PREVIEW", // Link previews e.g. Slack, Discord
-      ],
-    }),
-    // Create a token bucket rate limit. Other algorithms are supported.
-    tokenBucket({
-      mode: "LIVE",
-      refillRate: 5, // Refill 5 tokens per interval
-      interval: 10, // Refill every 10 seconds
-      capacity: 10, // Bucket capacity of 10 tokens
-    }),
-  ],
-});
+
 
 // Middleware
 
@@ -62,13 +35,45 @@ app.use((req: Request, res: Response, next: Function) => {
   next(); // Pass control to the next middleware
 });
 
-// Middleware to handle 404 Not Found errors
+// Arcjet middleware for bot detection and rate limiting
+app.use(async (req, res, next) => {
+  try {
+    const decision = await aj.protect(req, {
+      requested: 1, // specifies that each request consumes 1 token
+    });
 
-app.use("/api/product", productRouter);
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        res.status(429).json({ error: "Too Many Requests" });
+      } else if (decision.reason.isBot()) {
+        res.status(403).json({ error: "Bot access denied" });
+      } else {
+        res.status(403).json({ error: "Forbidden" });
+      }
+      return;
+    }
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("Hello, world! This is a TypeScript server. 🚀");
+    // check for spoofed bots
+    if (
+      decision.results.some(
+        (result) => result.reason.isBot() && result.reason.isSpoofed()
+      )
+    ) {
+      res.status(403).json({ error: "Spoofed bot detected" });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.log("Arcjet error", error);
+    next(error);
+  }
 });
+
+
+
+// Middleware to handle 404 Not Found errors
+app.use("/api/product", productRouter);
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({ error: "Not Found" });
