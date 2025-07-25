@@ -3,20 +3,25 @@ import { createBrowserRouter } from "react-router-dom";
 // import Layout from "./Layout";
 import HomeScreen from "../pages/Home";
 import Layout from "./Layout";
+import ProductsScreen from "../pages/Products";
 
 // const baseUrl = import.meta.env.VITE_BASE_URL || "";
 
 const router = createBrowserRouter([
-    {
-        path: `/`,
-        element: (<Layout />),
-        children: [
-            {
-                path: "",
-                element: (<HomeScreen />),
-            }
-        ]
-    }
+  {
+    path: `/`,
+    element: <Layout />,
+    children: [
+      {
+        path: "",
+        element: <HomeScreen />,
+      },
+      {
+        path: "products",
+        element: <ProductsScreen />,
+      },
+    ],
+  },
 ]);
 
 // const router = createBrowserRouter(
