@@ -4,8 +4,11 @@ import {
   configureStore,
   type ThunkAction,
 } from "@reduxjs/toolkit";
+import  productSlice  from "./productSlice";
 
-const rootReducer = {};
+const rootReducer = {
+  products: productSlice,
+};
 
 const store = configureStore({
   reducer: rootReducer,
