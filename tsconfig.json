@@ -1,30 +1,18 @@
 {
   "compilerOptions": {
-    // --- Project Environment ---
-    "target": "ES2022", // Use a modern JavaScript version for better performance and features.
-    "module": "NodeNext", // The standard for modern Node.js projects using ES Modules.
-    "moduleResolution": "NodeNext", // Works with `module: "NodeNext"` to correctly resolve modules.
-    "outDir": "./dist", // Place all compiled JavaScript files into a `dist` folder.
-    "rootDir": "./", // The root of your project is the current folder (the `backend` folder).
-
-    // --- Type Checking & Strictness (Best Practices) ---
-    "strict": true, // Enables all strict type-checking options for more robust code.
-    "forceConsistentCasingInFileNames": true, // Prevents bugs when moving between case-sensitive (Linux) and case-insensitive (Windows/macOS) systems.
-    "noUnusedLocals": true, // Reports an error for any declared variables that are not used.
-    "noUnusedParameters": true, // Reports an error for unused function parameters.
-
-    // --- Interoperability & Imports ---
-    "esModuleInterop": true, // Improves compatibility when importing older CommonJS modules.
-    "skipLibCheck": true, // Speeds up compilation by skipping type checks on library files (.d.ts).
-
-    // --- Custom Type Definitions (THE FIX) ---
-    // This tells TypeScript to look for your custom type definitions in the `./types` folder.
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./backend", // <-- This is the crucial change
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "include": [
-    "./**/*.ts" // Tells TypeScript to compile all files ending in .ts in the project.
+    "./backend/**/*.ts" // Make sure this points to your source files
   ],
-  "exclude": [
-    "node_modules" // Tells TypeScript to ignore the `node_modules` folder.
-  ]
+  "exclude": ["node_modules"]
 }

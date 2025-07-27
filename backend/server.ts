@@ -4,10 +4,6 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 
 import { aj } from "./lib/arcjet.js";
-import authRouter from "./routes/authRoutes.js";
-import productRouter from "./routes/productRouter.js";
-import userRoutes from "./routes/userRoutes.js";
-import { db } from "./config/db.js";
 // import { db } from "./config/db.js";
 
 dotenv.config(); // Load environment variables from .env file
@@ -72,39 +68,37 @@ app.use(async (req, res, next) => {
 });
 
 async function startServer() {
-  // const { protect } = await import("./middleware/authMiddleware.js");
+  try {
+    // 1. Dynamically import everything needed
+    const { db } = await import("./config/db.js");
+    const authRouter = (await import("./routes/authRoutes.js")).default;
+    const productRouter = (await import("./routes/productRouter.js")).default;
+    const userRoutes = (await import("./routes/userRoutes.js")).default;
+    const { protect } = await import("./middleware/authMiddleware.js");
 
-  app.use("/api/auth", authRouter);
-  app.use("/api/product", productRouter);
-  app.use("/api/users", userRoutes);
+    // 2. Test the database connection
+    await db.query("SELECT NOW()");
+    console.log("Database connection established successfully.");
 
-  app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: "Not Found" });
-  });
+    // 3. Set up all your routes
+    app.use("/api/auth", authRouter);
+    app.use("/api/product", productRouter);
+    app.use("/api/users", protect, userRoutes);
 
-  async function initializeDB() {
-    try {
-      const { rows } = await db.query("SELECT NOW()");
-      console.log("Database connection successful!, time: ", rows[0].now);
-    } catch (error) {
-      console.error("Error connecting to the database:", error);
-      throw error; // Rethrow the error to handle it in the server startup
-    }
-  }
-
-  initializeDB()
-    .then(() => {
-      app.listen(PORT, () => {
-        console.log(`Server is running on http://localhost:${PORT}`);
-      });
-    })
-    .catch((error) => {
-      console.error("Failed to start the server:", error);
-      process.exit(1); // Exit the process if the server fails to start
+    // 4. Set up the 404 handler (runs if no other route matches)
+    app.use((req: Request, res: Response) => {
+      res.status(404).json({ error: "Not Found" });
     });
+
+    // 5. Start the server and keep it running
+    app.listen(PORT, () => {
+      console.log(`✅ Server is running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start the server:", error);
+    process.exit(1); // Exit the process if startup fails
+  }
 }
 
-startServer().catch((error) => {
-  console.error("Failed to start the server:", error);
-  process.exit(1);
-});
+// --- Start the application ---
+startServer();
