@@ -2,17 +2,18 @@ import express, { Express, Request, Response } from "express";
 // import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
-import productRouter from "./routes/productRouter.js";
-import arcjet, { shield, detectBot, tokenBucket } from "@arcjet/node";
-import { isSpoofedBot } from "@arcjet/inspect";
+
 import { aj } from "./lib/arcjet.js";
+import authRouter from "./routes/authRoutes.js";
+import productRouter from "./routes/productRouter.js";
+import userRoutes from "./routes/userRoutes.js";
+import { db } from "./config/db.js";
+// import { db } from "./config/db.js";
 
 dotenv.config(); // Load environment variables from .env file
 
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
-
-
 
 // Middleware
 
@@ -70,36 +71,40 @@ app.use(async (req, res, next) => {
   }
 });
 
+async function startServer() {
+  // const { protect } = await import("./middleware/authMiddleware.js");
 
+  app.use("/api/auth", authRouter);
+  app.use("/api/product", productRouter);
+  app.use("/api/users", userRoutes);
 
-// Middleware to handle 404 Not Found errors
-app.use("/api/product", productRouter);
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({ error: "Not Found" });
+  });
 
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ error: "Not Found" });
-});
-async function initializeDB() {
-  try {
-    // Import the database connection from the config file
-    const { sql } = await import("./config/db.js");
-
-    // Example query to test the connection
-    await sql`SELECT 1`;
-    console.log("Database connected successfully.");
-  } catch (error) {
-    console.error("Database connection failed:", error);
-    console.log("error here");
-    process.exit(1); // Exit the process if the database connection fails
+  async function initializeDB() {
+    try {
+      const { rows } = await db.query("SELECT NOW()");
+      console.log("Database connection successful!, time: ", rows[0].now);
+    } catch (error) {
+      console.error("Error connecting to the database:", error);
+      throw error; // Rethrow the error to handle it in the server startup
+    }
   }
+
+  initializeDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to start the server:", error);
+      process.exit(1); // Exit the process if the server fails to start
+    });
 }
 
-initializeDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("Failed to start the server:", error);
-    process.exit(1); // Exit the process if the server fails to start
-  });
+startServer().catch((error) => {
+  console.error("Failed to start the server:", error);
+  process.exit(1);
+});

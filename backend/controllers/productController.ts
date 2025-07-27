@@ -1,12 +1,9 @@
 import { Request, Response } from "express";
-import { sql } from "../config/db.js";
+import { db } from "../config/db.js"; // Import the SQL client from the database configuration
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const response = await sql`
-    SELECT * FROM products
-    ORDER BY id DESC
-    `;
+    const response = await db.query("SELECT * FROM products ORDER BY id DESC");
     console.log(response);
     res.status(200).json({
       data: response,
@@ -21,15 +18,15 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const response = await sql`
-    SELECT * FROM products WHERE id = ${id}
-    `;
-    if (response.length === 0) {
+    const response = await db.query("SELECT * FROM products WHERE id = $1", [
+      id,
+    ]);
+    if (response.rows.length === 0) {
       return res.status(404).json({ error: "Product not found" });
     }
     console.log(response);
     res.status(201).json({
-      data: response[0],
+      data: response.rows[0],
       message: `Product ${id} fetched successfully`,
       success: true,
     });
@@ -44,15 +41,17 @@ export const createProduct = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "All fields are required" });
   }
   try {
-    const response = await sql`
-    INSERT INTO products (name, price, image)
-    VALUES (${name}, ${price}, ${image})
-    RETURNING *
-    `;
+    const response = await db.query(
+      "INSERT INTO products (name, price, image) VALUES ($1, $2, $3) RETURNING *",
+      [name, price, image]
+    );
     console.log(response);
     res
       .status(201)
-      .json({ message: "Product created successfully", data: response });
+      .json({
+        message: "Product created successfully",
+        data: response.rows[0],
+      });
   } catch (error: unknown) {
     const errMsg =
       error instanceof Error ? error.message : "Failed to create product";
@@ -69,21 +68,19 @@ export const updateProduct = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    const response = await sql`
-      UPDATE products
-      SET name = ${name}, price = ${price}, image = ${image}
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    const response = await db.query(
+      "UPDATE products SET name = $1, price = $2, image = $3 WHERE id = $4 RETURNING *",
+      [name, price, image, id]
+    );
 
-    if (response.length === 0) {
+    if (response.rows.length === 0) {
       return res.status(404).json({ error: "Product not found" });
     }
 
     console.log(response);
     res.status(200).json({
       message: "Product updated successfully",
-      data: response[0],
+      data: response.rows[0],
     });
   } catch (error) {
     const errMsg =
@@ -95,18 +92,20 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const response = await sql`
-    DELETE FROM products WHERE id = ${id}
-    RETURNING *
-    `;
-    if (response.length === 0) {
+    const response = await db.query(
+      "DELETE FROM products WHERE id = $1 RETURNING *",
+      [id]
+    );
+    if (response.rows.length === 0) {
       return res.status(404).json({ error: "Product not found" });
     }
     console.log(response);
-    
-    console.log(`Product with ID ${id} deleted successfully`);  
 
-    res.status(200).json({ message: "Product deleted successfully", data: {id} });
+    console.log(`Product with ID ${id} deleted successfully`);
+
+    res
+      .status(200)
+      .json({ message: "Product deleted successfully", data: { id } });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete product" });
   }
