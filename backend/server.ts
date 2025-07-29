@@ -3,7 +3,13 @@ import express, { Express, Request, Response } from "express";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
-import { aj } from "./lib/arcjet.js";
+import { aj } from "./services/arcjet.js";
+import { db } from "./config/db.js";
+import authRouter from "./routes/authRoutes.js";
+import productRouter from "./routes/productRouter.js";
+import { protect } from "./middleware/authMiddleware.js";
+import userRoutes from "./routes/userRoutes.js";
+import recipeRouter from "./routes/reciepeRoutes.js";
 // import { db } from "./config/db.js";
 
 dotenv.config(); // Load environment variables from .env file
@@ -67,38 +73,29 @@ app.use(async (req, res, next) => {
   }
 });
 
-async function startServer() {
+async function initDB() {
   try {
-    // 1. Dynamically import everything needed
-    const { db } = await import("./config/db.js");
-    const authRouter = (await import("./routes/authRoutes.js")).default;
-    const productRouter = (await import("./routes/productRouter.js")).default;
-    const userRoutes = (await import("./routes/userRoutes.js")).default;
-    const { protect } = await import("./middleware/authMiddleware.js");
-
-    // 2. Test the database connection
     await db.query("SELECT NOW()");
     console.log("Database connection established successfully.");
 
-    // 3. Set up all your routes
-    app.use("/api/auth", authRouter);
-    app.use("/api/product", productRouter);
-    app.use("/api/users", protect, userRoutes);
-
-    // 4. Set up the 404 handler (runs if no other route matches)
-    app.use((req: Request, res: Response) => {
-      res.status(404).json({ error: "Not Found" });
-    });
-
     // 5. Start the server and keep it running
-    app.listen(PORT, () => {
-      console.log(`✅ Server is running on http://localhost:${PORT}`);
-    });
   } catch (error) {
     console.error("❌ Failed to start the server:", error);
     process.exit(1); // Exit the process if startup fails
   }
 }
 
-// --- Start the application ---
-startServer();
+app.use("/api/auth", authRouter);
+app.use("/api/product", productRouter);
+app.use("/api/user", protect, userRoutes);
+app.use("/api/recipe", protect, recipeRouter);
+
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ error: "Not Found" });
+});
+
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ Server is running on http://localhost:${PORT}`);
+  });
+});

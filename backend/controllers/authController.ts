@@ -39,11 +39,20 @@ export const register = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { id: newUser.id, email: newUser.email },
       process.env.JWT_SECRET as string,
-      { expiresIn: "1h" } // The token will expire in 1 hour
+      { expiresIn: "24h" }
     );
 
     // 6. Send the token back to the user
-    res.status(201).json({ token });
+    res.status(201).json({
+      token,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        subscription_tier: newUser.subscription_tier,
+      },
+      message: "User registered successfully.",
+      expiresIn: 3600 * 24,
+    });
   } catch (error) {
     console.error("Registration Error:", error);
     res.status(500).json({ message: "Server error during registration." });
@@ -79,11 +88,20 @@ export const login = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET as string,
-      { expiresIn: "1h" } // The token will expire in 1 hour
+      { expiresIn: "24h" } // The token will expire in 24 hours
     );
 
     // 5. Send the token back to the user
-    res.status(200).json({ token });
+    res.status(200).json({
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        subscription_tier: user.subscription_tier,
+      },
+      message: "User logged in successfully.",
+      expiresIn: 3600,
+    });
   } catch (error) {
     console.error("Login Error:", error);
     res.status(500).json({ message: "Server error during login." });
